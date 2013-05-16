@@ -21,13 +21,11 @@
 #include <stdlib.h>
 #include <signal.h>
 
-#define MAXLINELEN 100		  /* max chars in an input line */
 #define NWORDS 16		  /* max words on command line */
 #define MAXWORDLEN 64		  /* maximum word length */
 
 extern char **environ;		  /* environment */
 
-char line[MAXLINELEN+1];	  /* input line */
 char *words[NWORDS];              /* ptrs to words from the command line */
 int nwds;			  /* # of words in the command line */
 char path[MAXWORDLEN];		  /* path to the command */
@@ -45,8 +43,7 @@ char *argv[NWORDS+1];		  /* argv structure for execve */
 /* terminal, the input is automatically echoed (assuming we're in   */
 /* "cooked" mode).                                                  */
 /*------------------------------------------------------------------*/
-int Getline(void)
-{
+int getLine( char buffer[], int maxLength ) {
     int n;		/* result of read system call */
     int len;		/* length of input line */
     int gotnb;		/* non-zero when non-whitespace was seen */
@@ -54,21 +51,22 @@ int Getline(void)
     char *msg;		/* error message */
     int isterm;		/* non-zero if input is from a terminal */
 
-    isterm = isatty(0);		/* see if file descriptor 0 is a terminal */
-    for(;;) {
-        if (isterm)
+    isterm = isatty(0); //See if being run from terminal.
+    while( len >= maxLength || gotnb == 0 ) {
+        if (isterm) {
             write(1,"# ",2);
+        }
         gotnb = len = 0;
         for(;;) {
-
-            n = read(0,&c,1);		/* read one character */
+            n = read( 0, &c, 1 ); //Read one character.
 
             if (n == 0)			/* end of file? */
                 return 0;		/* yes, so return 0 */
 
             if (n == -1) {		/* error reading? */
-                perror("Error reading command line");
-                exit(1);
+                msg = "Error reading command line.\n";
+                write( 2, msg, strlen( msg ) );
+                exit( 1 );
             }
 
             if (!isterm)		/* if input not from a terminal */
@@ -77,7 +75,7 @@ int Getline(void)
             if (c == '\n')		/* end of line? */
                 break;
 
-            if (len >= MAXLINELEN) {	/* too many chars? */
+            if (len >= maxLength) {	/* too many chars? */
                 len++;			/* yes, so just update the length */
                 continue;
             }
@@ -85,21 +83,20 @@ int Getline(void)
             if (c != ' ' && c != '\t')	/* was input not whitespace? */
                 gotnb = 1;
 
-            line[len++] = c;		/* save the input character */
+            buffer[len++] = c;		/* save the input character */
         }
 
-        if (len >= MAXLINELEN) {	/* if the input line was too long... */
-            char *msg;
+        if (len >= maxLength) {	/* if the input line was too long... */
             msg = "Input line is too long.\n";
-            write(2,msg,strlen(msg));
+            write( 2, msg, strlen( msg ) );
             continue;
         }
         if (gotnb == 0)			/* line contains only whitespace */
             continue;
-
-        line[len] = '\0';		/* terminate the line */
-        return 1;
     }
+
+    buffer[len] = '\0'; //End with null character.
+    return 1;
 }
 
 /*------------------------------------------------*/
@@ -110,7 +107,7 @@ int Getline(void)
 /* The words are identified by the pointed in the */
 /* 'words' array, and 'nwds' = number of words.   */
 /*------------------------------------------------*/
-int parse()
+int parse( char *line )
 {
     char *p;			/* pointer to current word */
     char *msg;			/* error message */
@@ -128,9 +125,9 @@ int parse()
             write(2,msg,strlen(msg));
             return 0;
         }
-        words[nwds] = p;	/* save pointer to the word */
-        nwds++;			/* increase the word count */
-        p = strtok(NULL," \t");	/* get pointer to next word, if any */
+        words[nwds] = p;	// save pointer to the word 
+        nwds++;			// increase the word count
+        p = strtok(NULL," \t");	// get pointer to next word, if any
     }
     return 1;
 }

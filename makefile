@@ -10,3 +10,4 @@ test: shell.c shell_test.c
 clean:
 	rm -f shell
 	rm -f shell_test
+	rm -f core
