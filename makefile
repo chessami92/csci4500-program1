@@ -5,7 +5,7 @@ shell: shell.c
 
 test: shell.c shell_test.c
 	cc -o shell_test shell_test.c shell.c
-	./shell_test
+	./shell_test < TestData
 
 clean:
 	rm -f shell
