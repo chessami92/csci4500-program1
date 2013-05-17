@@ -44,58 +44,56 @@ char *argv[NWORDS+1];		  /* argv structure for execve */
 /* "cooked" mode).                                                  */
 /*------------------------------------------------------------------*/
 int getLine( char buffer[], int maxLength ) {
-    int n;		/* result of read system call */
-    int len;		/* length of input line */
-    int gotnb;		/* non-zero when non-whitespace was seen */
-    char c;		/* current input character */
-    char *msg;		/* error message */
-    int isterm;		/* non-zero if input is from a terminal */
+    int length;     //Current line length.
+    int whitespace; //Zero when only whitespace seen.
+    char c;         //Current input character.
+    char *msg;		//Holds error messages.
+    int isterm;		//Non-zero if input is from a terminal.
 
     isterm = isatty(0); //See if being run from terminal.
-    while( len >= maxLength || gotnb == 0 ) {
-        if (isterm) {
+    while( length >= maxLength || whitespace == 0 ) {
+        if( isterm ) {
             write(1,"# ",2);
         }
-        gotnb = len = 0;
-        for(;;) {
-            n = read( 0, &c, 1 ); //Read one character.
-
-            if (n == 0)			/* end of file? */
-                return 0;		/* yes, so return 0 */
-
-            if (n == -1) {		/* error reading? */
-                msg = "Error reading command line.\n";
-                write( 2, msg, strlen( msg ) );
-                exit( 1 );
+        whitespace = length = 0;
+        while( 1 ) {
+            switch( read( 0, &c, 1 ) ) {
+                case 0: 
+                    return 0;
+                case -1: 
+                    msg = "Error reading command line.\n";
+                    write( 2, msg, strlen( msg ) );
+                    exit( 1 );
             }
 
-            if (!isterm)		/* if input not from a terminal */
-                write (1,&c,1);		/* echo the character */
+            if( !isterm )                   //If input not from terminal
+                write ( 1, &c, 1 );         //Echo the character.
 
-            if (c == '\n')		/* end of line? */
+            if( c == '\n' )                 //Check for end of line.
                 break;
 
-            if (len >= maxLength) {	/* too many chars? */
-                len++;			/* yes, so just update the length */
+            if( length >= maxLength ) {     //Check if input too long.
+                length++;                   //Just update length.
                 continue;
             }
 
-            if (c != ' ' && c != '\t')	/* was input not whitespace? */
-                gotnb = 1;
+            if( c != ' ' && c != '\t' )     //Check if not whitespace.
+                whitespace = 1;
 
-            buffer[len++] = c;		/* save the input character */
+            buffer[length++] = c;           //Save the input character.
         }
 
-        if (len >= maxLength) {	/* if the input line was too long... */
+        if ( length >= maxLength ) {        //Alert user if line too long
             msg = "Input line is too long.\n";
             write( 2, msg, strlen( msg ) );
-            continue;
         }
-        if (gotnb == 0)			/* line contains only whitespace */
-            continue;
+        if ( whitespace == 0 ) {            //Alert user if only whitespace
+            msg = "Only whitespace detected.\n";
+            write( 2, msg, strlen( msg ) );
+        }
     }
 
-    buffer[len] = '\0'; //End with null character.
+    buffer[length] = '\0';                  //End with null character.
     return 1;
 }
 
