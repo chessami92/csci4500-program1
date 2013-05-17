@@ -16,12 +16,14 @@ int main(int argc, char *argv[]) {
             write( 2, msg, strlen( msg ) );
             continue;
         }
-
-        if( !parse( MAX_WORDS, MAX_WORD_LENGTH, line, words ) ) { /*Parse into individual words.*/
-            continue;   /*Do not notify user - they were given the issue already.*/
+ 
+        /*Parse into individual words.*/
+        if( !parse( MAX_WORDS, MAX_WORD_LENGTH, line, words ) ) {
+            continue;           /*Do not notify user - they were given the issue already.*/
         }
-        //execute();			// execute the command*/
+        
+        execute( words );       /* Execute the parsed commands */
     }
-    write(1,"\n",1);
-    return 0;
+    write( 1, "\n", 1 );
+    return( 0 );
 }

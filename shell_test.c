@@ -37,10 +37,36 @@ static void test_parse_too_many_words() {
     assert( parse( 10, 10, line, words ) == 0 && "Should have failed because of long word." );
 }
 
+static void test_getPath() {
+    char testCommand[30];
+    char path[50];
+
+    strcpy( testCommand, "echo" );
+    assert( getPath( testCommand, path ) == 0 && "Should have found the path for echo." );
+    assert( strcmp( path, "/bin/echo" ) == 0 );
+
+    strcpy( testCommand, "grep" );
+    assert( getPath( testCommand, path ) == 0 && "Should have found the path for grep." );
+    assert( strcmp( path, "/bin/grep" ) == 0 );
+
+    strcpy( testCommand, "vim" );
+    assert( getPath( testCommand, path ) == 0 && "Should have found the path for vim." );
+    assert( strcmp( path, "/usr/bin/vim" ) == 0 );
+    
+    strcpy( testCommand, "./shell_test" );
+    assert( getPath( testCommand, path ) == 0 && "Should have found the current program!" );
+    assert( strcmp( path, "./shell_test" ) == 0 );
+
+    strcpy( testCommand, "badCommand" );
+    assert( getPath( testCommand, path ) == -1 && "Should not have found this nonsense." );
+    assert( strcmp( path, "" ) == 0 );
+}
+
 int main( void ) {
     test_input();
     test_parse();
     test_parse_long_word();
     test_parse_too_many_words();
+    test_getPath();
     return 0;
 }   

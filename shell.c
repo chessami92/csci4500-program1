@@ -133,44 +133,38 @@ int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
 /* words[0]. If the file identified by 'path' is not executable, return -1. */
 /* Otherwise return 0.                                                      */
 /*--------------------------------------------------------------------------*/
-int execok(void)
-{
-    char *p;
-    char *pathenv;
-    char *path;
-    char *argv[9+1];		  /* argv structure for execve */
+int getPath( char *command, char *fullPath ) {
+    char *p;        /* Pointer to each individual path element. */
+    char *pathenv;  /* Pointer to copy of PATH. */
 
-    /*-------------------------------------------------------*/
-    /* If words[0] is already a relative or absolute path... */
-    /*-------------------------------------------------------*/
-
-    //if (strchr(words[0],'/') != NULL) {		/* if it has no '/' */
-    //    strcpy(path,words[0]);			/* copy it to path */
-    //    return access(path,X_OK);		/* return executable status */
-    //}
-
-    /*-------------------------------------------------------------------*/
-    /* Otherwise search for a valid executable in the PATH directories.  */
-    /* We do this by getting a copy of the value of the PATH environment */
-    /* variable, and checking each directory identified there to see it  */
-    /* contains an executable file named word[0]. If a directory does    */
-    /* have such a file, return 0. Otherwise, return -1. In either case, */
-    /* always free the storage allocated for the value of PATH.          */
-    /*-------------------------------------------------------------------*/
-    pathenv = strdup(getenv("PATH"));		/* get copy of PATH value */
-    p = strtok(pathenv,":");			/* find first directory */
-    while (p != NULL) {
-        strcpy(path,p);				/* copy directory to path */
-        strcat(path,"/");			/* append a slash */
-        //strcat(path,words[0]);			/* append executable's name */
-        if (access(path,X_OK) == 0) {		/* if it's executable */
-            free(pathenv);			    /* free PATH copy */
-            return 0;				    /* and return 0 */
-        }
-        p = strtok(NULL,":");			/* get next directory */
+    /* Check to see if it is already a fully qualified */
+    /* path name. If so, check executability and       */
+    /* put the command in the full path label.         */
+    if( strchr( command, '/' ) != NULL ) {	/* if it has no '/' */
+        strcpy( fullPath, command );		    /* copy it to path */
+        return access( fullPath, X_OK );	    /* return executable status */
     }
-    free(pathenv);				/* free PATH copy */
-    return -1;					/* say we didn't find it */
+
+    /* Search for the program in each of the listings in the */
+    /* environment variable PATH. Append the command name    */
+    /* and test if it is executable. If so, put that in the  */
+    /* full path variable.                                   */
+    pathenv = strdup( getenv( "PATH" ) );		/* Make copy of PATH. */
+    p = strtok( pathenv, ":" );			        /* Get first directory. */
+    while( p != NULL ) {
+        strcpy( fullPath, p );				    /* Copy directory to full path. */
+        strcat( fullPath, "/" );			    /* Append a slash. */
+        strcat( fullPath, command );			/* Append executable's name. */
+        if ( access( fullPath, X_OK ) == 0 ) {  /* Ensure that it is executable. */
+            free( pathenv );			        /* Free PATH copy. */
+            return 0;				            /* Report found. */ 
+        }
+        p = strtok( NULL, ":" );			    /* Get next directory. */
+    }
+    free( pathenv );				            /* Free PATH copy. */
+    *fullPath = 0;                              /* Set path to null. */
+
+    return -1;                                  /* Report not found. */
 }
 
 /*--------------------------------------------------*/
@@ -179,13 +173,13 @@ int execok(void)
 /* Otherwise return 0 if it completed successfully, */
 /* or 1 if it did not.                              */
 /*--------------------------------------------------*/
-int execute(void)
+int execute( char *words[] )
 {
     int i, j;
     int status;
     char *msg;
 
-    if (execok() == 0) {			/* is it executable? */
+    if (0 == 0 ) { //execok() == 0) {			/* is it executable? */
         status = fork();			/* yes; create a new process */
 
         if (status == -1) {			/* verify fork succeeded */
