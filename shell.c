@@ -35,13 +35,13 @@ extern char **environ;  /*Environment, for getting path*/
 /* "cooked" mode).                                                  */
 /*------------------------------------------------------------------*/
 int getLine( char buffer[], int maxLength ) {
-    int length;     /*Current line length.*/
-    int whitespace; /*Zero when only whitespace seen.*/
-    char c;         /*Current input character.*/
-    char *msg;		/*Holds error messages.*/
-    int isterm;		/*Non-zero if input is from a terminal.*/
+    int length;     /* Current line length. */
+    int whitespace; /* Zero when only whitespace seen. */
+    char c;         /* Current input character. */
+    char *msg;		/* Holds error messages. */
+    int isterm;		/* Non-zero if input is from a terminal. */
 
-    isterm = isatty( 0 ); /*See if being run from terminal.*/
+    isterm = isatty( 0 ); /* See if being run from terminal. */
     while( 1 ) {
         if( isterm ) {
             write( 1, "$ ", 2 );
@@ -57,38 +57,38 @@ int getLine( char buffer[], int maxLength ) {
                     exit( 1 );
             }
 
-            if( !isterm ) {                 /*If input not from terminal*/
-                write ( 1, &c, 1 );         /*Echo the character.*/
+            if( !isterm ) {                 /* If input not from terminal */
+                write ( 1, &c, 1 );         /* Echo the character. */
             }
 
-            if( c == '\n' ) {               /*Check for end of line.*/
+            if( c == '\n' ) {               /* Check for end of line. */
                 break;
             }
 
-            if( length >= maxLength ) {     /*Check if input too long.*/
-                length++;                   /*Just update length.*/
+            if( length >= maxLength ) {     /* Check if input too long. */
+                length++;                   /* Just update length. */
                 continue;
             }
 
-            if( c != ' ' && c != '\t' ) {   /*Check if not whitespace.*/
+            if( c != ' ' && c != '\t' ) {   /* Check if not whitespace. */
                 whitespace = 1;
             }
 
-            buffer[length++] = c;           /*Save the input character.*/
+            buffer[length++] = c;           /* Save the input character. */
         }
 
-        if ( length >= maxLength ) {        /*Alert user if line too long.*/
+        if ( length >= maxLength ) {        /* Alert user if line too long. */
             msg = "ERROR: Input line is too long.\n";
             write( 2, msg, strlen( msg ) );
             continue;
         }
-        if ( whitespace == 0 ) {            /*Alert user if only whitespace.*/
+        if ( whitespace == 0 ) {            /* Alert user if only whitespace. */
             msg = "ERROR: Only whitespace detected.\n";
             write( 2, msg, strlen( msg ) );
             continue;
         }
 
-        buffer[length] = '\0';              /*End with null character.*/
+        buffer[length] = '\0';              /* End with null character. */
         return 1;
     }
 }
@@ -102,12 +102,13 @@ int getLine( char buffer[], int maxLength ) {
 /* 'words' array, and 'nwds' = number of words.   */
 /*------------------------------------------------*/
 int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
-    char *p;			//Pointer to current word.
-    char *msg;			//Holds error messages.
+    char *p;			/* Pointer to current word. */
+    char *msg;			/* Holds error messages. */
     int numWords = 0;
 
     p = strtok( line, " \t" );
     while( p != NULL ) {
+        /* First check that no error conditions occurred. */
         if( numWords == maxWords ) {
             msg = "ERROR: Too many words.\n";
             write(2,msg,strlen(msg));
@@ -115,14 +116,14 @@ int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
         }
         if( strlen( p ) >= maxWordLength ) {
             msg = "ERROR: Word too long.\n";
-            write(2,msg,strlen(msg));
+            write( 2, msg, strlen( msg ) );
             return 0;
         }
-        words[numWords] = p;	// save pointer to the word 
-        numWords++;			// increase the word count
-        p = strtok(NULL," \t");	// get pointer to next word, if any
+        words[numWords] = p;        /* Save pointer to the word. */
+        numWords++;			        /* Increase the word count. */
+        p = strtok( NULL," \t" );	/* Get pointer to next word, if any. */
     }
-    words[numWords] = NULL;			/* mark end of argument array */
+    words[numWords] = NULL;		    /* Mark end of argument array. */
 
     return 1;
 }
