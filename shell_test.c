@@ -52,9 +52,25 @@ static void test_getPath() {
     assert( strcmp( path, "" ) == 0 );
 }
 
+static void test_execute() {
+    char *words[10];
+
+    words[0] = "echo";
+    words[1] = "Hello World";
+    words[2] = NULL;
+    assert( execute( words ) == 0 && "Should have executed echo properly." );
+
+    words[0] = "grep";
+    words[1] = "int";
+    words[2] = "shell.c";
+    words[3] = NULL;
+    assert( execute( words ) == 0 && "Should have executed echo properly." );
+}
+
 int main( void ) {
     test_input();
     test_parse();
     test_getPath();
+    test_execute();
     return 0;
 }   

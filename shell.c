@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#define MAX_PATH_LENGTH 50
+
 extern char **environ;  /*Environment, for getting path*/
 
 /*------------------------------------------------------------------*/
@@ -175,38 +177,31 @@ int getPath( char *command, char *fullPath ) {
 /*--------------------------------------------------*/
 int execute( char *words[] )
 {
-    int i, j;
-    int status;
+    int pid;
+    char executable[MAX_PATH_LENGTH];
     char *msg;
 
-    if (0 == 0 ) { //execok() == 0) {			/* is it executable? */
-        status = fork();			/* yes; create a new process */
-
-        if (status == -1) {			/* verify fork succeeded */
-            perror("fork");
-            exit(1);
+    if ( getPath( words[0], executable ) == 0 ) {   /* Check executability, get path. */
+        switch( pid = fork() ) {                    /* Create new process. */
+            case -1:                                /* Ensure that it succeeded. */
+                msg = "ERROR: Fork failed.\n";
+                write( 2, msg, strlen( msg ) );
+                exit( 1 );
+            case 0:                                 /* In child process, execute. */
+                execve( executable, words, environ );
+                msg = "Error: execve must have failed.\n";
+                exit( 1 );
         }
 
-        if (status == 0) {			/* in the child process... */
-            //status = execve(path,words,environ); /* try to execute it */
-
-            perror("execve");			/* we only get here if */
-            exit(0);				/* execve failed... */
-        }
-
-        /*------------------------------------------------*/
-        /* The parent process (the shell) continues here. */
-        /*------------------------------------------------*/
-        wait(&status);				/* wait for process to end */
-
+        wait( &pid );				                /* Wait for child process to end. */
+        return( 0 );
     } else {
-        /*----------------------------------------------------------*/
         /* Command cannot be executed. Display appropriate message. */
-        /*----------------------------------------------------------*/
-        msg = "*** ERROR: '";
-        write(2,msg,strlen(msg));
-        //write(2,words[0],strlen(words[0]));
+        msg = "ERROR: '";
+        write( 2, msg, strlen( msg ) );
+        write( 2, words[0], strlen( words[0] ) );
         msg = "' cannot be executed.\n";
-        write(2,msg,strlen(msg));
+        write( 2, msg, strlen( msg ) );
+        return( 1 );
     }
 }
