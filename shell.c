@@ -15,21 +15,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
 
-#define NWORDS 16		  /* max words on command line */
-#define MAXWORDLEN 64		  /* maximum word length */
-
-extern char **environ;		  /* environment */
-
-char *words[NWORDS];              /* ptrs to words from the command line */
-int nwds;			  /* # of words in the command line */
-char path[MAXWORDLEN];		  /* path to the command */
-char *argv[NWORDS+1];		  /* argv structure for execve */
+extern char **environ;  /*Environment, for getting path*/
 
 /*------------------------------------------------------------------*/
 /* Get a line from the standard input. Return 1 on success, or 0 at */
@@ -37,23 +28,23 @@ char *argv[NWORDS+1];		  /* argv structure for execve */
 /* get another line. If the line is too long, display a message and */
 /* get another line. If read fails, diagnose the error and abort.   */
 /*------------------------------------------------------------------*/
-/* This function will display a prompt ("# ") if the input comes    */
+/* This function will display a prompt ("$ ") if the input comes    */
 /* from a terminal. Otherwise no prompt is displayed, but the       */
 /* input is echoed to the standard output. If the input is from a   */
 /* terminal, the input is automatically echoed (assuming we're in   */
 /* "cooked" mode).                                                  */
 /*------------------------------------------------------------------*/
 int getLine( char buffer[], int maxLength ) {
-    int length;     //Current line length.
-    int whitespace; //Zero when only whitespace seen.
-    char c;         //Current input character.
-    char *msg;		//Holds error messages.
-    int isterm;		//Non-zero if input is from a terminal.
+    int length;     /*Current line length.*/
+    int whitespace; /*Zero when only whitespace seen.*/
+    char c;         /*Current input character.*/
+    char *msg;		/*Holds error messages.*/
+    int isterm;		/*Non-zero if input is from a terminal.*/
 
-    isterm = isatty(0); //See if being run from terminal.
-    while( length >= maxLength || whitespace == 0 ) {
+    isterm = isatty( 0 ); /*See if being run from terminal.*/
+    while( 1 ) {
         if( isterm ) {
-            write(1,"# ",2);
+            write( 1, "$ ", 2 );
         }
         whitespace = length = 0;
         while( 1 ) {
@@ -66,35 +57,40 @@ int getLine( char buffer[], int maxLength ) {
                     exit( 1 );
             }
 
-            if( !isterm )                   //If input not from terminal
-                write ( 1, &c, 1 );         //Echo the character.
+            if( !isterm ) {                 /*If input not from terminal*/
+                write ( 1, &c, 1 );         /*Echo the character.*/
+            }
 
-            if( c == '\n' )                 //Check for end of line.
+            if( c == '\n' ) {               /*Check for end of line.*/
                 break;
+            }
 
-            if( length >= maxLength ) {     //Check if input too long.
-                length++;                   //Just update length.
+            if( length >= maxLength ) {     /*Check if input too long.*/
+                length++;                   /*Just update length.*/
                 continue;
             }
 
-            if( c != ' ' && c != '\t' )     //Check if not whitespace.
+            if( c != ' ' && c != '\t' ) {   /*Check if not whitespace.*/
                 whitespace = 1;
+            }
 
-            buffer[length++] = c;           //Save the input character.
+            buffer[length++] = c;           /*Save the input character.*/
         }
 
-        if ( length >= maxLength ) {        //Alert user if line too long
-            msg = "Input line is too long.\n";
+        if ( length >= maxLength ) {        /*Alert user if line too long.*/
+            msg = "ERROR: Input line is too long.\n";
             write( 2, msg, strlen( msg ) );
+            continue;
         }
-        if ( whitespace == 0 ) {            //Alert user if only whitespace
-            msg = "Only whitespace detected.\n";
+        if ( whitespace == 0 ) {            /*Alert user if only whitespace.*/
+            msg = "ERROR: Only whitespace detected.\n";
             write( 2, msg, strlen( msg ) );
+            continue;
         }
+
+        buffer[length] = '\0';              /*End with null character.*/
+        return 1;
     }
-
-    buffer[length] = '\0';                  //End with null character.
-    return 1;
 }
 
 /*------------------------------------------------*/
@@ -105,28 +101,29 @@ int getLine( char buffer[], int maxLength ) {
 /* The words are identified by the pointed in the */
 /* 'words' array, and 'nwds' = number of words.   */
 /*------------------------------------------------*/
-int parse( char *line )
-{
-    char *p;			/* pointer to current word */
-    char *msg;			/* error message */
+int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
+    char *p;			//Pointer to current word.
+    char *msg;			//Holds error messages.
+    int numWords = 0;
 
-    nwds = 0;
-    p = strtok(line," \t");
-    while (p != NULL) {
-        if (nwds == NWORDS) {
-            msg = "*** ERROR: Too many words.\n";
+    p = strtok( line, " \t" );
+    while( p != NULL ) {
+        if( numWords == maxWords ) {
+            msg = "ERROR: Too many words.\n";
             write(2,msg,strlen(msg));
             return 0;
         }
-        if (strlen(p) >= MAXWORDLEN) {
-            msg = "*** ERROR: Word too long.\n";
+        if( strlen( p ) >= maxWordLength ) {
+            msg = "ERROR: Word too long.\n";
             write(2,msg,strlen(msg));
             return 0;
         }
-        words[nwds] = p;	// save pointer to the word 
-        nwds++;			// increase the word count
+        words[numWords] = p;	// save pointer to the word 
+        numWords++;			// increase the word count
         p = strtok(NULL," \t");	// get pointer to next word, if any
     }
+    words[numWords] = NULL;			/* mark end of argument array */
+
     return 1;
 }
 
@@ -139,14 +136,17 @@ int execok(void)
 {
     char *p;
     char *pathenv;
+    char *path;
+    char *argv[9+1];		  /* argv structure for execve */
 
     /*-------------------------------------------------------*/
     /* If words[0] is already a relative or absolute path... */
     /*-------------------------------------------------------*/
-    if (strchr(words[0],'/') != NULL) {		/* if it has no '/' */
-        strcpy(path,words[0]);			/* copy it to path */
-        return access(path,X_OK);		/* return executable status */
-    }
+
+    //if (strchr(words[0],'/') != NULL) {		/* if it has no '/' */
+    //    strcpy(path,words[0]);			/* copy it to path */
+    //    return access(path,X_OK);		/* return executable status */
+    //}
 
     /*-------------------------------------------------------------------*/
     /* Otherwise search for a valid executable in the PATH directories.  */
@@ -161,7 +161,7 @@ int execok(void)
     while (p != NULL) {
         strcpy(path,p);				/* copy directory to path */
         strcat(path,"/");			/* append a slash */
-        strcat(path,words[0]);			/* append executable's name */
+        //strcat(path,words[0]);			/* append executable's name */
         if (access(path,X_OK) == 0) {		/* if it's executable */
             free(pathenv);			    /* free PATH copy */
             return 0;				    /* and return 0 */
@@ -193,9 +193,7 @@ int execute(void)
         }
 
         if (status == 0) {			/* in the child process... */
-            words[nwds] = NULL;			/* mark end of argument array */
-
-            status = execve(path,words,environ); /* try to execute it */
+            //status = execve(path,words,environ); /* try to execute it */
 
             perror("execve");			/* we only get here if */
             exit(0);				/* execve failed... */
@@ -212,7 +210,7 @@ int execute(void)
         /*----------------------------------------------------------*/
         msg = "*** ERROR: '";
         write(2,msg,strlen(msg));
-        write(2,words[0],strlen(words[0]));
+        //write(2,words[0],strlen(words[0]));
         msg = "' cannot be executed.\n";
         write(2,msg,strlen(msg));
     }
