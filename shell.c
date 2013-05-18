@@ -197,8 +197,13 @@ int forkAndRun( char *command[], int fd[] ) {
                 write( 2, msg, strlen( msg ) );
                 exit( 1 );
             default:
-                close( fd[0] );
-                close( fd[1] );
+                if( fd[0] != 0 ) {
+                    close( fd[0] );
+                }
+                if( fd[1] != 1 ) {
+                    close( fd[1] );
+                }
+
                 return pid;
         }
     } else {
@@ -212,6 +217,15 @@ int forkAndRun( char *command[], int fd[] ) {
     }
 
     return pid;
+}
+
+/* Switch two ints in place. */
+void swap( int *num1, int *num2 ) {
+    int temp;
+
+    temp = *num1;
+    *num1 = *num2;
+    *num2 = temp;
 }
 
 /* Execute the command, if possible.                */

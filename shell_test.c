@@ -54,25 +54,25 @@ static void test_getPath() {
 
 static void test_forkAndRun() {
     int fd[2];
-    int temp;
+    int fdNext[2];
     int pid;
     char *words[10];
 
-    pipe( fd );
-    temp = fd[0];
     fd[0] = 0;
+    fd[1] = 1;
+
+    pipe( fdNext );
+    swap( &fd[1], &fdNext[1] );
     words[0] = "echo";
     words[1] = "hello\n\n\n";
     words[2] = NULL;
-    forkAndRun( words, fd );
+    assert( forkAndRun( words, fd ) != 0 && "Should have returned a PID." );
 
-    pipe( fd );
-    fd[0] = temp;
-    fd[1] = 1;
     words[0] = "wc";
     words[1] = "-l";
     words[2] = NULL;
-    pid = forkAndRun( words, fd );
+    pid = forkAndRun( words, fdNext );
+    assert( pid != 0 && "Should have returned a PID." );
 
     wait( &pid );
 }
@@ -96,10 +96,10 @@ static void test_execute() {
 }
 
 int main( void ) {
-    //test_input();
-    //test_parse();
-    //test_getPath();
+    test_input();
+    test_parse();
+    test_getPath();
     test_forkAndRun();
-    //test_execute();
+    test_execute();
     return 0;
 }   
