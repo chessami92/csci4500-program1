@@ -66,12 +66,15 @@ static void test_forkAndRun() {
     words[0] = "echo";
     words[1] = "hello\n\n\n";
     words[2] = NULL;
-    assert( forkAndRun( words, fd ) != 0 && "Should have returned a PID." );
+    pid = forkAndRun( words, fd );
+    assert( pid != 0 && "Should have returned a PID." );
 
+    fd[0] = fdNext[0];
+    fd[1] = fdNext[1];
     words[0] = "wc";
     words[1] = "-l";
     words[2] = NULL;
-    pid = forkAndRun( words, fdNext );
+    pid = forkAndRun( words, fd );
     assert( pid != 0 && "Should have returned a PID." );
 
     wait( &pid );
