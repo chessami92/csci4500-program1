@@ -52,6 +52,31 @@ static void test_getPath() {
     assert( strcmp( path, "" ) == 0 );
 }
 
+static void test_forkAndRun() {
+    int fd[2];
+    int temp;
+    int pid;
+    char *words[10];
+
+    pipe( fd );
+    temp = fd[0];
+    fd[0] = 0;
+    words[0] = "echo";
+    words[1] = "hello\n\n\n";
+    words[2] = NULL;
+    forkAndRun( words, fd );
+
+    pipe( fd );
+    fd[0] = temp;
+    fd[1] = 1;
+    words[0] = "wc";
+    words[1] = "-l";
+    words[2] = NULL;
+    pid = forkAndRun( words, fd );
+
+    wait( &pid );
+}
+
 static void test_execute() {
     char *words[10];
 
@@ -63,14 +88,18 @@ static void test_execute() {
     words[0] = "grep";
     words[1] = "int";
     words[2] = "shell.c";
-    words[3] = NULL;
+    words[3] = "|";
+    words[4] = "wc";
+    words[5] = "-l";
+    words[6] = NULL;
     assert( execute( words ) == 0 && "Should have executed echo properly." );
 }
 
 int main( void ) {
-    test_input();
-    test_parse();
-    test_getPath();
-    test_execute();
+    //test_input();
+    //test_parse();
+    //test_getPath();
+    test_forkAndRun();
+    //test_execute();
     return 0;
 }   

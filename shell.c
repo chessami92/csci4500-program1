@@ -106,7 +106,7 @@ int getLine( char buffer[], int maxLength ) {
 int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
     char *p;			/* Pointer to current word. */
     char *msg;			/* Holds error messages. */
-    int numWords = 0;
+    int numWords = 0;   /* For incrementally storing words. */
 
     p = strtok( line, " \t" );
     while( p != NULL ) {
@@ -168,40 +168,79 @@ int getPath( char *command, char *fullPath ) {
 
     return -1;                                  /* Report not found. */
 }
+/* Find the location of the command and run it. */
+/* Returns the pid of the child process if      */
+/* successful, 0 if not successfull.            */
+int forkAndRun( char *command[], int fd[] ) {
+    char executable[MAX_PATH_LENGTH];   /* The actual executable path to be run. */
+    int pid;                            /* Newly created PID that shell will wait on. */
+    char *msg;                          /* Holds error messages. */
 
-/*--------------------------------------------------*/
-/* Execute the command, if possible.                */
-/* If it is not executable, return -1.              */
-/* Otherwise return 0 if it completed successfully, */
-/* or 1 if it did not.                              */
-/*--------------------------------------------------*/
-int execute( char *words[] )
-{
-    int pid;
-    char executable[MAX_PATH_LENGTH];
-    char *msg;
-
-    if ( getPath( words[0], executable ) == 0 ) {   /* Check executability, get path. */
+    if ( getPath( command[0], executable ) == 0 ) { /* Check executability, get path. */
         switch( pid = fork() ) {                    /* Create new process. */
             case -1:                                /* Ensure that it succeeded. */
                 msg = "ERROR: Fork failed.\n";
                 write( 2, msg, strlen( msg ) );
                 exit( 1 );
             case 0:                                 /* In child process, execute. */
-                execve( executable, words, environ );
-                msg = "Error: execve must have failed.\n";
-                exit( 1 );
-        }
+                if( fd[0] != 0 ) {
+                    close( 0 );
+                    dup( fd[0] );
+                }
+                if( fd[1] != 1 ) {
+                    close( 1 );
+                    dup( fd[1] );
+                }
 
-        wait( &pid );				                /* Wait for child process to end. */
-        return( 0 );
+                execve( executable, command, environ );
+                msg = "Error: execve must have failed.\n";
+                write( 2, msg, strlen( msg ) );
+                exit( 1 );
+            default:
+                close( fd[0] );
+                close( fd[1] );
+                return pid;
+        }
     } else {
         /* Command cannot be executed. Display appropriate message. */
         msg = "ERROR: '";
         write( 2, msg, strlen( msg ) );
-        write( 2, words[0], strlen( words[0] ) );
+        write( 2, command[0], strlen( command[0] ) );
         msg = "' cannot be executed.\n";
         write( 2, msg, strlen( msg ) );
         return( 1 );
     }
+
+    return pid;
+}
+
+/* Execute the command, if possible.                */
+/* If it is not executable, return -1.              */
+/* Otherwise return 0 if it completed successfully, */
+/* or 1 if it did not.                              */
+int execute( char *words[] ) {
+    int fd[2];                          /* File descriptor for pipes. */
+    int p;                              /* For looping the words to find pipes. */
+    char *msg;                          /* Holds error messages. */
+
+    fd[0] = 0;
+    fd[1] = 1;
+
+    /* See if there are any pipes. */
+    while( words[p] != NULL ) {
+        if( *words[p] == '|' ) {
+            words[p] = NULL;
+            if( pipe( fd ) == -1 ) {
+                msg = "ERROR: Pipe failed.\n";
+                write( 2, msg, strlen( msg ) );
+                exit( 1 );
+            }
+            break;
+        }
+        p++;
+    }
+
+
+    //wait( &pid );				                /* Wait for child process to end. */
+    return( 0 );
 }
