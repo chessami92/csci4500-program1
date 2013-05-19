@@ -16,11 +16,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
 
 #define MAX_PATH_LENGTH 50
+#define MAX_PIPES 10
 
 extern char **environ;  /*Environment, for getting path*/
 
@@ -171,32 +173,37 @@ int getPath( char *command, char *fullPath ) {
 /* Find the location of the command and run it. */
 /* Returns the pid of the child process if      */
 /* successful, 0 if not successfull.            */
-int forkAndRun( char *command[], int fd[] ) {
+pid_t forkAndRun( char *command[], int fd[] ) {
     char executable[MAX_PATH_LENGTH];   /* The actual executable path to be run. */
-    int pid;                            /* Newly created PID that shell will wait on. */
+    pid_t pid;                          /* Newly created PID that shell will wait on. */
     char *msg;                          /* Holds error messages. */
 
     if ( getPath( command[0], executable ) == 0 ) { /* Check executability, get path. */
-        switch( pid = fork() ) {                    /* Create new process. */
+        pid = fork();                               /* Create new process. */
+        switch( pid ) {
             case -1:                                /* Ensure that it succeeded. */
                 msg = "ERROR: Fork failed.\n";
                 write( 2, msg, strlen( msg ) );
                 exit( 1 );
             case 0:                                 /* In child process, execute. */
                 if( fd[0] != 0 ) {
-                    close( 0 );
-                    dup( fd[0] );
+                    close( 0 );     /* Close standard input. */
+                    dup( fd[0] );   /* Fill the standard input. */
+                    close( fd[0] ); /* Close the extra file descriptor. */
                 }
                 if( fd[1] != 1 ) {
-                    close( 1 );
-                    dup( fd[1] );
+                    close( 1 );     /* Close standard output. */
+                    dup( fd[1] );   /* Fill the standard output. */
+                    close( fd[1] ); /* Close the extra file descriptor. */
                 }
 
+                /* Execute the command now that input and output are set. */
                 execve( executable, command, environ );
-                msg = "Error: execve must have failed.\n";
+                msg = "Error: execve failed.\n";
                 write( 2, msg, strlen( msg ) );
                 exit( 1 );
             default:
+                /* Close the file descriptors if they are not stdin or stdout. */
                 if( fd[0] != 0 ) {
                     close( fd[0] );
                 }
@@ -204,7 +211,7 @@ int forkAndRun( char *command[], int fd[] ) {
                     close( fd[1] );
                 }
 
-                return pid;
+                return pid;         /*Return the pid to the calling method. */
         }
     } else {
         /* Command cannot be executed. Display appropriate message. */
@@ -233,23 +240,21 @@ void swap( int *num1, int *num2 ) {
 /* Otherwise return 0 if it completed successfully, */
 /* or 1 if it did not.                              */
 int execute( char *words[] ) {
-    int fd[2];      /* File descriptor for pipes. */
-    int fdNext[2];  /* File descriptor for the next execution. */
-    int i;          /* For looping the words to find pipes. */
-    int command;    /* Points to the executable in words. */
-    int pid;        /* The PID of the process to wait for completion. */
-    char *msg;      /* Holds error messages. */
+    int fd[2], fdNext[2];   /* File descriptors for current and next process. */
+    pid_t pid[MAX_PIPES];   /* The PIDs to wait for completion. */
+    int numPipes;           /* How many pipes were created. */
+    int i;                  /* For looping to find pipes and wait on PIDs. */
+    int command;            /* Executable location with words parameter. */
+    char *msg;              /* Holds error messages. */
 
     fdNext[0] = 0;
     fdNext[1] = 1;
 
     /* See if there are any pipes. */
-    i = 0;
-    command = 0;
-    while( words[i] != NULL ) {
-        if( *words[i] == '|' ) {
+    for( i = 0, command = 0; words[i] != NULL; ++i ) {
+        if( *words[i] == '|' ) {    /* Found a pipe. */
             words[i] = NULL;
-            fd[0] = fdNext[0];
+            fd[0] = fdNext[0];      /* Update the current file descriptors. */
             fd[1] = fdNext[1];
 
             if( pipe( fdNext ) == -1 ) {
@@ -258,16 +263,21 @@ int execute( char *words[] ) {
                 exit( 1 );
             }
 
+            /* Update the file descriptors - read from last execution */
+            /* or standard input and write to next execution. */
             swap( &fd[1], &fdNext[1] );
-            pid = forkAndRun( &words[command], fd );
-            //wait( &pid );
-            command = i + 1;
+            /* Run the command and capture the PID. */
+            pid[numPipes] = forkAndRun( &words[command], fd );
+            numPipes++;             /* Update how many pipes are used. */
+            command = i + 1;        /* Point to next valid command. */
         }
-        i++;
     }
 
-    pid = forkAndRun( &words[command], fdNext );
+    /* Run the final command and capture the PID. */
+    pid[numPipes] = forkAndRun( &words[command], fdNext );
 
-    wait( &pid );				                /* Wait for child process to end. */
+    for( i = 0; i <= numPipes; ++i ) {
+        wait( &pid[i] );            /* Wait for child process to end. */
+    }
     return( 0 );
 }
