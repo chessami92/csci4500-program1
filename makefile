@@ -1,6 +1,6 @@
 all: shell
 
-shell: shell.c
+shell: shell.c shell_main.c
 	cc -o shell shell_main.c shell.c
 
 test: shell.c shell_test.c
