@@ -11,19 +11,22 @@ int main(int argc, char *argv[]) {
     char *msg;
 
     while ( 1 ) { 
-        if( !getLine( line, MAX_LINE_LENGTH ) ) { /*Get command.*/
+        if( !getLine( line, MAX_LINE_LENGTH ) ) { /* Get command. */
             msg = "ERROR: Problem reading command.\n";
             write( 2, msg, strlen( msg ) );
             continue;
         }
  
-        /*Parse into individual words.*/
+        /* Parse into individual words. */
         if( !parse( MAX_WORDS, MAX_WORD_LENGTH, line, words ) ) {
-            continue;           /*Do not notify user - they were given the issue already.*/
+            continue;           /* Do not notify user - they were given the issue already. */
+        }
+
+        /* Check if use is exiting the shell. */
+        if( strcmp( words[0], "exit" ) == 0 ) {
+            return( 0 );
         }
         
         execute( words );       /* Execute the parsed commands */
     }
-    write( 1, "\n", 1 );
-    return( 0 );
 }
