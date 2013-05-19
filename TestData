@@ -1,3 +1,2 @@
-Too long of string!
-Test
-
+echo testingLongString
+echo test

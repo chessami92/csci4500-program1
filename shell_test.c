@@ -6,7 +6,7 @@
 static void test_input() {
     char line[11];
     assert( getLine( line, 10 ) == 1 && "GetLine encountered an error" );
-    assert( strcmp( line, "Test" ) == 0 && "Input should have been 'Test'" );
+    assert( strcmp( line, "echo test" ) == 0 && "Input should have been 'Test'" );
 }
 
 static void test_parse() {
