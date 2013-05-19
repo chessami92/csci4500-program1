@@ -233,28 +233,41 @@ void swap( int *num1, int *num2 ) {
 /* Otherwise return 0 if it completed successfully, */
 /* or 1 if it did not.                              */
 int execute( char *words[] ) {
-    int fd[2];                          /* File descriptor for pipes. */
-    int p;                              /* For looping the words to find pipes. */
-    char *msg;                          /* Holds error messages. */
+    int fd[2];      /* File descriptor for pipes. */
+    int fdNext[2];  /* File descriptor for the next execution. */
+    int i;          /* For looping the words to find pipes. */
+    int command;    /* Points to the executable in words. */
+    int pid;        /* The PID of the process to wait for completion. */
+    char *msg;      /* Holds error messages. */
 
-    fd[0] = 0;
-    fd[1] = 1;
+    fdNext[0] = 0;
+    fdNext[1] = 1;
 
     /* See if there are any pipes. */
-    while( words[p] != NULL ) {
-        if( *words[p] == '|' ) {
-            words[p] = NULL;
-            if( pipe( fd ) == -1 ) {
+    i = 0;
+    command = 0;
+    while( words[i] != NULL ) {
+        if( *words[i] == '|' ) {
+            words[i] = NULL;
+            fd[0] = fdNext[0];
+            fd[1] = fdNext[1];
+
+            if( pipe( fdNext ) == -1 ) {
                 msg = "ERROR: Pipe failed.\n";
                 write( 2, msg, strlen( msg ) );
                 exit( 1 );
             }
-            break;
+
+            swap( &fd[1], &fdNext[1] );
+            pid = forkAndRun( &words[command], fd );
+            //wait( &pid );
+            command = i + 1;
         }
-        p++;
+        i++;
     }
 
+    pid = forkAndRun( &words[command], fdNext );
 
-    //wait( &pid );				                /* Wait for child process to end. */
+    wait( &pid );				                /* Wait for child process to end. */
     return( 0 );
 }
