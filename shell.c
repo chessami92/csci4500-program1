@@ -241,8 +241,7 @@ void swap( int *num1, int *num2 ) {
 /* or 1 if it did not.                              */
 int execute( char *words[] ) {
     int fd[2], fdNext[2];   /* File descriptors for current and next process. */
-    pid_t pid[MAX_PIPES];   /* The PIDs to wait for completion. */
-    int numPipes;           /* How many pipes were created. */
+    pid_t pid;              /* The PIDs to wait for completion. */
     int i;                  /* For looping to find pipes and wait on PIDs. */
     int command;            /* Executable location with words parameter. */
     char *msg;              /* Holds error messages. */
@@ -266,18 +265,14 @@ int execute( char *words[] ) {
             /* Update the file descriptors - read from last execution */
             /* or standard input and write to next execution. */
             swap( &fd[1], &fdNext[1] );
-            /* Run the command and capture the PID. */
-            pid[numPipes] = forkAndRun( &words[command], fd );
-            numPipes++;             /* Update how many pipes are used. */
+            forkAndRun( &words[command], fd );
             command = i + 1;        /* Point to next valid command. */
         }
     }
 
     /* Run the final command and capture the PID. */
-    pid[numPipes] = forkAndRun( &words[command], fdNext );
+    pid = forkAndRun( &words[command], fdNext );
 
-    for( i = 0; i <= numPipes; ++i ) {
-        wait( &pid[i] );            /* Wait for child process to end. */
-    }
+    waitpid( pid, &pid, 0 );
     return( 0 );
 }
