@@ -172,7 +172,7 @@ int getPath( char *command, char *fullPath ) {
 }
 /* Find the location of the command and run it. */
 /* Returns the pid of the child process if      */
-/* successful, 0 if not successfull.            */
+/* successful, -1 if not successfull.           */
 pid_t forkAndRun( char *command[], int fd[] ) {
     char executable[MAX_PATH_LENGTH];   /* The actual executable path to be run. */
     pid_t pid;                          /* Newly created PID that shell will wait on. */
@@ -220,7 +220,7 @@ pid_t forkAndRun( char *command[], int fd[] ) {
         write( 2, command[0], strlen( command[0] ) );
         msg = "' cannot be executed.\n";
         write( 2, msg, strlen( msg ) );
-        return( 1 );
+        return( -1 );
     }
 
     return pid;
@@ -235,15 +235,15 @@ void swap( int *num1, int *num2 ) {
     *num2 = temp;
 }
 
-/* Execute the command, if possible.                */
-/* If it is not executable, return -1.              */
-/* Otherwise return 0 if it completed successfully, */
-/* or 1 if it did not.                              */
+/* Execute the command, if possible. If it is not */
+/* executable, returns -1. Otherwise return 0 if  */
+/* it completed successfully, or 1 if it did not. */
 int execute( char *words[] ) {
     int fd[2], fdNext[2];   /* File descriptors for current and next process. */
-    pid_t pid;              /* The PIDs to wait for completion. */
+    int status;             /* The status of the PID that exited. */
     int i;                  /* For looping to find pipes and wait on PIDs. */
     int command;            /* Executable location with words parameter. */
+    int commandCount;       /* How many commands were executed (one less than # of pipes). */
     char *msg;              /* Holds error messages. */
 
     fdNext[0] = 0;
@@ -265,14 +265,20 @@ int execute( char *words[] ) {
             /* Update the file descriptors - read from last execution */
             /* or standard input and write to next execution. */
             swap( &fd[1], &fdNext[1] );
-            forkAndRun( &words[command], fd );
+            /* Run the command with the correct file descriptors. */
+            forkAndRun( words + command, fd );
             command = i + 1;        /* Point to next valid command. */
+            commandCount++;         /* Signal that another command was run. */
         }
     }
 
     /* Run the final command and capture the PID. */
-    pid = forkAndRun( &words[command], fdNext );
+    forkAndRun( words + command, fdNext );
+    commandCount++;                 /* Signal that another command was run. */
 
-    waitpid( pid, &pid, 0 );
+    for( i = 0; i < commandCount; ++i ) {   /* Wait for all child processes to end. */
+        wait( &status );
+    }
+
     return( 0 );
 }
