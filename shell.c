@@ -1,17 +1,11 @@
-/*---------------------------------------------------------------*/
-/* A simple shell                                                */
-/* Stanley Wileman                                               */
-/* Last change: 5/13/2013                                        */
-/*                                                               */
-/* Process command lines (100 char max) with at most 16 "words"  */
-/* and one command. No wildcard or shell variable processing.    */
-/* No pipes, conditional or sequential command handling is done. */
-/* Each word contains at most MAXWORDLEN characters.             */
-/* Words are separated by spaces and/or tab characters.          */
-/*                                                               */
-/* This file is provided to students in CSCI 4500 for their use  */
-/* in developing solutions to the first programming assignment.  */
-/*---------------------------------------------------------------*/
+/* A simple shell                                           */
+/* Josh DeWitt                                              */
+/*                                                          */
+/* Get user input, find executable path for execution, and  */
+/* Support for multiple pipes from one program to another.  */
+/* No autocomplete, wildcards, conditional, or sequential   */
+/* command handling provided. Words are separated with tabs */
+/* or spaces.                                               */
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
