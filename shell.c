@@ -16,7 +16,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -30,7 +29,7 @@ extern char **environ;  /*Environment, for getting path*/
 /* Get a line from the standard input. Return 1 on success, or 0 at */
 /* end of file. If the line contains only whitespace, ignore it and */
 /* get another line. If the line is too long, display a message and */
-/* get another line. If read fails, diagnose the error and abort.   */
+/* get another line. If read fails, diagnose the ERROR and abort.   */
 /*------------------------------------------------------------------*/
 /* This function will display a prompt ("$ ") if the input comes    */
 /* from a terminal. Otherwise no prompt is displayed, but the       */
@@ -42,7 +41,7 @@ int getLine( char buffer[], int maxLength ) {
     int length;     /* Current line length. */
     int whitespace; /* Zero when only whitespace seen. */
     char c;         /* Current input character. */
-    char *msg;		/* Holds error messages. */
+    char *msg;		/* Holds ERROR messages. */
     int isterm;		/* Non-zero if input is from a terminal. */
 
     isterm = isatty( 0 ); /* See if being run from terminal. */
@@ -56,7 +55,7 @@ int getLine( char buffer[], int maxLength ) {
                 case 0: 
                     return 0;
                 case -1: 
-                    msg = "Error reading command line.\n";
+                    msg = "ERROR reading command line.\n";
                     write( 2, msg, strlen( msg ) );
                     exit( 1 );
             }
@@ -99,20 +98,20 @@ int getLine( char buffer[], int maxLength ) {
 
 /*------------------------------------------------*/
 /* Parse the command line into an array of words. */
-/* Return 1 on success, or 0 if there is an error */
+/* Return 1 on success, or 0 if there is an ERROR */
 /* (i.e. there are too many words, or a word is   */
-/* too long), diagnosing the error.               */
+/* too long), diagnosing the ERROR.               */
 /* The words are identified by the pointed in the */
 /* 'words' array, and 'nwds' = number of words.   */
 /*------------------------------------------------*/
 int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
     char *p;			/* Pointer to current word. */
-    char *msg;			/* Holds error messages. */
+    char *msg;			/* Holds ERROR messages. */
     int numWords = 0;   /* For incrementally storing words. */
 
     p = strtok( line, " \t" );
     while( p != NULL ) {
-        /* First check that no error conditions occurred. */
+        /* First check that no ERROR conditions occurred. */
         if( numWords == maxWords ) {
             msg = "ERROR: Too many words.\n";
             write(2,msg,strlen(msg));
@@ -176,7 +175,7 @@ int getPath( char *command, char *fullPath ) {
 pid_t forkAndRun( char *command[], int fd[] ) {
     char executable[MAX_PATH_LENGTH];   /* The actual executable path to be run. */
     pid_t pid;                          /* Newly created PID that shell will wait on. */
-    char *msg;                          /* Holds error messages. */
+    char *msg;                          /* Holds ERROR messages. */
 
     if ( getPath( command[0], executable ) == 0 ) { /* Check executability, get path. */
         pid = fork();                               /* Create new process. */
@@ -199,7 +198,7 @@ pid_t forkAndRun( char *command[], int fd[] ) {
 
                 /* Execute the command now that input and output are set. */
                 execve( executable, command, environ );
-                msg = "Error: execve failed.\n";
+                msg = "ERROR: execve failed.\n";
                 write( 2, msg, strlen( msg ) );
                 exit( 1 );
             default:
@@ -244,7 +243,7 @@ int execute( char *words[] ) {
     int i;                  /* For looping to find pipes and wait on PIDs. */
     int command;            /* Executable location with words parameter. */
     int commandCount;       /* How many commands were executed (one less than # of pipes). */
-    char *msg;              /* Holds error messages. */
+    char *msg;              /* Holds ERROR messages. */
 
     fdNext[0] = 0;
     fdNext[1] = 1;
