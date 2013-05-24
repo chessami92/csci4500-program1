@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <signal.h>
 
-#define MAX_PATH_LENGTH 50
+#define MAX_PATH_LENGTH 64
 #define MAX_PIPES 10
 
 extern char **environ;  /*Environment, for getting path*/
@@ -35,7 +35,7 @@ int getLine( char buffer[], int maxLength ) {
     int length;     /* Current line length. */
     int whitespace; /* Zero when only whitespace seen. */
     char c;         /* Current input character. */
-    char *msg;		/* Holds ERROR messages. */
+    char *msg;		/* Holds error messages. */
     int isterm;		/* Non-zero if input is from a terminal. */
 
     isterm = isatty( 0 ); /* See if being run from terminal. */
@@ -100,7 +100,7 @@ int getLine( char buffer[], int maxLength ) {
 /*------------------------------------------------*/
 int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
     char *p;			/* Pointer to current word. */
-    char *msg;			/* Holds ERROR messages. */
+    char *msg;			/* Holds error messages. */
     int numWords = 0;   /* For incrementally storing words. */
 
     p = strtok( line, " \t" );
@@ -159,64 +159,52 @@ int getPath( char *command, char *fullPath ) {
         p = strtok( NULL, ":" );			    /* Get next directory. */
     }
     free( pathenv );				            /* Free PATH copy. */
-    *fullPath = 0;                              /* Set path to null. */
 
     return -1;                                  /* Report not found. */
 }
-/* Find the location of the command and run it. */
+/* Run the command with the path in the element */
+/* zero of the array. The path should already   */
+/* validated.                                   */
 /* Returns the pid of the child process if      */
 /* successful, -1 if not successfull.           */
 pid_t forkAndRun( char *command[], int fd[] ) {
-    char executable[MAX_PATH_LENGTH];   /* The actual executable path to be run. */
     pid_t pid;                          /* Newly created PID that shell will wait on. */
-    char *msg;                          /* Holds ERROR messages. */
+    char *msg;                          /* Holds error messages. */
 
-    if ( getPath( command[0], executable ) == 0 ) { /* Check executability, get path. */
-        pid = fork();                               /* Create new process. */
-        switch( pid ) {
-            case -1:                                /* Ensure that it succeeded. */
-                msg = "ERROR: Fork failed.\n";
-                write( 2, msg, strlen( msg ) );
-                exit( 1 );
-            case 0:                                 /* In child process, execute. */
-                if( fd[0] != 0 ) {
-                    close( 0 );     /* Close standard input. */
-                    dup( fd[0] );   /* Fill the standard input. */
-                    close( fd[0] ); /* Close the extra file descriptor. */
-                }
-                if( fd[1] != 1 ) {
-                    close( 1 );     /* Close standard output. */
-                    dup( fd[1] );   /* Fill the standard output. */
-                    close( fd[1] ); /* Close the extra file descriptor. */
-                }
+    pid = fork();                               /* Create new process. */
+    switch( pid ) {
+        case -1:                                /* Ensure that it succeeded. */
+            msg = "ERROR: Fork failed.\n";
+            write( 2, msg, strlen( msg ) );
+            exit( 1 );
+        case 0:                                 /* In child process, execute. */
+            if( fd[0] != 0 ) {
+                close( 0 );     /* Close standard input. */
+                dup( fd[0] );   /* Fill the standard input. */
+                close( fd[0] ); /* Close the extra file descriptor. */
+            }
+            if( fd[1] != 1 ) {
+                close( 1 );     /* Close standard output. */
+                dup( fd[1] );   /* Fill the standard output. */
+                close( fd[1] ); /* Close the extra file descriptor. */
+            }
 
-                /* Execute the command now that input and output are set. */
-                execve( executable, command, environ );
-                msg = "ERROR: execve failed.\n";
-                write( 2, msg, strlen( msg ) );
-                exit( 1 );
-            default:
-                /* Close the file descriptors if they are not stdin or stdout. */
-                if( fd[0] != 0 ) {
-                    close( fd[0] );
-                }
-                if( fd[1] != 1 ) {
-                    close( fd[1] );
-                }
+            /* Execute the command now that input and output are set. */
+            execve( command[0], command, environ );
+            msg = "ERROR: execve failed.\n";
+            write( 2, msg, strlen( msg ) );
+            exit( 1 );
+        default:
+            /* Close the file descriptors if they are not stdin or stdout. */
+            if( fd[0] != 0 ) {
+                close( fd[0] );
+            }
+            if( fd[1] != 1 ) {
+                close( fd[1] );
+            }
 
-                return pid;         /*Return the pid to the calling method. */
-        }
-    } else {
-        /* Command cannot be executed. Display appropriate message. */
-        msg = "ERROR: '";
-        write( 2, msg, strlen( msg ) );
-        write( 2, command[0], strlen( command[0] ) );
-        msg = "' cannot be executed.\n";
-        write( 2, msg, strlen( msg ) );
-        return( -1 );
+            return pid;         /*Return the pid to the calling method. */
     }
-
-    return pid;
 }
 
 /* Switch two ints in place. */
@@ -232,46 +220,76 @@ void swap( int *num1, int *num2 ) {
 /* executable, returns -1. Otherwise return 0 if  */
 /* it completed successfully, or 1 if it did not. */
 int execute( char *words[] ) {
-    int fd[2], fdNext[2];   /* File descriptors for current and next process. */
+    int fd[2][2];           /* Standard input and output for each process. */
+    char executable[2][MAX_PATH_LENGTH];   /* The actual executable path to be run. */
+    char *curCommand;       /* Pointer to current command searching for. */
     int status;             /* The status of the PID that exited. */
     int i;                  /* For looping to find pipes and wait on PIDs. */
-    int command;            /* Executable location with words parameter. */
-    int commandCount;       /* How many commands were executed (one less than # of pipes). */
-    char *msg;              /* Holds ERROR messages. */
+    int command[2];         /* Points to command in words array. */
+    char *msg;              /* Holds error messages. */
 
-    fdNext[0] = 0;
-    fdNext[1] = 1;
+    command[0] = 0;         /* First command is at location 0. */
+    command[1] = -1;        /* Assume no second command. */
 
-    /* See if there are any pipes. */
-    for( i = 0, command = 0; words[i] != NULL; ++i ) {
+    fd[0][0] = 0;           /* Assume standard input and output to begin. */
+    fd[0][1] = 1;
+
+    /* See if there is more than one command. */
+    for( i = 1; words[i] != NULL; ++i ) {
         if( *words[i] == '|' ) {    /* Found a pipe. */
-            words[i] = NULL;
-            fd[0] = fdNext[0];      /* Update the current file descriptors. */
-            fd[1] = fdNext[1];
-
-            if( pipe( fdNext ) == -1 ) {
-                msg = "ERROR: Pipe failed.\n";
+            if( command[1] != -1 ) {
+                msg = "ERROR: Cannot have multiple pipes.\n";
                 write( 2, msg, strlen( msg ) );
-                exit( 1 );
+                return -1;
             }
 
-            /* Update the file descriptors - read from last execution */
-            /* or standard input and write to next execution. */
-            swap( &fd[1], &fdNext[1] );
-            /* Run the command with the correct file descriptors. */
-            forkAndRun( words + command, fd );
-            command = i + 1;        /* Point to next valid command. */
-            commandCount++;         /* Signal that another command was run. */
+            if( words[i + 1] == NULL ) {
+                msg = "ERROR: Must pipe into another command.\n";
+                write( 2, msg, strlen( msg ) );
+                return -1;
+            }
+
+            words[i] = NULL;        /* Set pipe as null to separate commands. */
+            command[1] = i + 1;     /* Next word must be command. */
         }
     }
 
-    /* Run the final command and capture the PID. */
-    forkAndRun( words + command, fdNext );
-    commandCount++;                 /* Signal that another command was run. */
+    /* Validate all commands seen and get paths. */
+    for( i = 0; i < 2 && command[i] != -1; ++i ) {
+        curCommand = words[command[i]];
 
-    for( i = 0; i < commandCount; ++i ) {   /* Wait for all child processes to end. */
-        wait( &status );
+        if( getPath( curCommand, executable[i] ) != 0 ) {
+            // Command cannot be executed. Display appropriate message.
+            msg = "ERROR: '";
+            write( 2, msg, strlen( msg ) );
+            write( 2, curCommand, strlen( curCommand ) );
+            msg = "' cannot be executed.\n";
+            write( 2, msg, strlen( msg ) );
+            return( -1 );
+        }
+
+        words[command[i]] = executable[i];   /* Set the path for the command. */
     }
+
+    /* Create pipe for second command if necessary. */
+    if( command[1] != -1 ) {
+        if( pipe( fd[1] ) == -1 ) {
+            msg = "ERROR: Pipe failed.\n";
+            write( 2, msg, strlen( msg ) ); 
+            exit( 1 );
+        }
+        /* Update the file descriptors - read from last execution */
+        /* or standard input and write to next execution. */
+        swap( &fd[0][1], &fd[1][1] );
+    }
+
+    /* Execute all commands. */
+    for( i = 0; i < 2 && command[i] != -1; ++i ) {
+        forkAndRun( words + command[i], fd[i] );
+    }
+
+    wait( &status );                /* Wait for all child processes to end. */
+    wait( &status );
 
     return( 0 );
 }
