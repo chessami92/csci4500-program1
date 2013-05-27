@@ -43,9 +43,9 @@ static void test_getPath() {
     assert( getPath( testCommand, path ) == 0 && "Should have found the path for vim." );
     assert( strcmp( path, "/usr/bin/vim" ) == 0 );
     
-    strcpy( testCommand, "./shell_test" );
+    strcpy( testCommand, "./prog1_test" );
     assert( getPath( testCommand, path ) == 0 && "Should have found the current program!" );
-    assert( strcmp( path, "./shell_test" ) == 0 );
+    assert( strcmp( path, "./prog1_test" ) == 0 );
 
     strcpy( testCommand, "badCommand" );
     assert( getPath( testCommand, path ) == -1 && "Should not have found this nonsense." );

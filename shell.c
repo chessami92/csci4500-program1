@@ -15,11 +15,9 @@
 #include <signal.h>
 
 #define MAX_PATH_LENGTH 64
-#define MAX_PIPES 10
 
 extern char **environ;  /*Environment, for getting path*/
 
-/*------------------------------------------------------------------*/
 /* Get a line from the standard input. Return 1 on success, or 0 at */
 /* end of file. If the line contains only whitespace, ignore it and */
 /* get another line. If the line is too long, display a message and */
@@ -30,7 +28,6 @@ extern char **environ;  /*Environment, for getting path*/
 /* input is echoed to the standard output. If the input is from a   */
 /* terminal, the input is automatically echoed (assuming we're in   */
 /* "cooked" mode).                                                  */
-/*------------------------------------------------------------------*/
 int getLine( char buffer[], int maxLength ) {
     int length;     /* Current line length. */
     int whitespace; /* Zero when only whitespace seen. */
@@ -90,14 +87,12 @@ int getLine( char buffer[], int maxLength ) {
     }
 }
 
-/*------------------------------------------------*/
 /* Parse the command line into an array of words. */
 /* Return 1 on success, or 0 if there is an ERROR */
 /* (i.e. there are too many words, or a word is   */
 /* too long), diagnosing the ERROR.               */
 /* The words are identified by the pointed in the */
 /* 'words' array, and 'nwds' = number of words.   */
-/*------------------------------------------------*/
 int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
     char *p;			/* Pointer to current word. */
     char *msg;			/* Holds error messages. */
@@ -149,10 +144,10 @@ int getPath( char *command, char *fullPath ) {
     pathenv = strdup( getenv( "PATH" ) );		/* Make copy of PATH. */
     p = strtok( pathenv, ":" );			        /* Get first directory. */
     while( p != NULL ) {
-        strcpy( fullPath, p );				    /* Copy directory to full path. */
+        strcpy( fullPath, p );				    /* Copy dir to full path. */
         strcat( fullPath, "/" );			    /* Append a slash. */
         strcat( fullPath, command );			/* Append executable's name. */
-        if ( access( fullPath, X_OK ) == 0 ) {  /* Ensure that it is executable. */
+        if ( access( fullPath, X_OK ) == 0 ) {  /* Ensure executability. */
             free( pathenv );			        /* Free PATH copy. */
             return 0;				            /* Report found. */ 
         }
@@ -160,6 +155,7 @@ int getPath( char *command, char *fullPath ) {
     }
     free( pathenv );				            /* Free PATH copy. */
 
+    *fullPath = '\0';
     return -1;                                  /* Report not found. */
 }
 /* Run the command with the path in the element */
@@ -168,7 +164,7 @@ int getPath( char *command, char *fullPath ) {
 /* Returns the pid of the child process if      */
 /* successful, -1 if not successfull.           */
 pid_t forkAndRun( char *command[], int fd[] ) {
-    pid_t pid;                          /* Newly created PID that shell will wait on. */
+    pid_t pid;                          /* Newly created PID. */
     char *msg;                          /* Holds error messages. */
 
     pid = fork();                               /* Create new process. */
@@ -221,7 +217,7 @@ void swap( int *num1, int *num2 ) {
 /* it completed successfully, or 1 if it did not. */
 int execute( char *words[] ) {
     int fd[2][2];           /* Standard input and output for each process. */
-    char executable[2][MAX_PATH_LENGTH];   /* The actual executable path to be run. */
+    char executable[2][MAX_PATH_LENGTH];   /* The executable path to be run. */
     char *curCommand;       /* Pointer to current command searching for. */
     int status;             /* The status of the PID that exited. */
     int i;                  /* For looping to find pipes and wait on PIDs. */

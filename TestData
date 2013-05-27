@@ -1,4 +1,4 @@
 echo testingLongString
 echo test
-cat shell.c | grep int | wc -l
-cat shell.c | grep int | wc -l | wc -l
+cat shell.c | wc -l
+grep int shell.c | wc -l
