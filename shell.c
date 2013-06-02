@@ -21,25 +21,18 @@ extern char **environ;  /*Environment, for getting path*/
 /* Get a line from the standard input. Return 1 on success, or 0 at */
 /* end of file. If the line contains only whitespace, ignore it and */
 /* get another line. If the line is too long, display a message and */
-/* get another line. If read fails, diagnose the ERROR and abort.   */
+/* get another line. If read fails, diagnose the error and abort.   */
 /*------------------------------------------------------------------*/
-/* This function will display a prompt ("$ ") if the input comes    */
-/* from a terminal. Otherwise no prompt is displayed, but the       */
-/* input is echoed to the standard output. If the input is from a   */
-/* terminal, the input is automatically echoed (assuming we're in   */
-/* "cooked" mode).                                                  */
+/* This function will always displays prompt ("$ "). The input is   */
+/* echoed to the standard output before execution.                  */
 int getLine( char buffer[], int maxLength ) {
     int length;     /* Current line length. */
     int whitespace; /* Zero when only whitespace seen. */
     char c;         /* Current input character. */
     char *msg;		/* Holds error messages. */
-    int isterm;		/* Non-zero if input is from a terminal. */
 
-    isterm = isatty( 0 ); /* See if being run from terminal. */
     while( 1 ) {
-        if( isterm ) {
-            write( 1, "$ ", 2 );
-        }
+        write( 1, "$ ", 2 );
         whitespace = length = 0;
         while( 1 ) {
             switch( read( 0, &c, 1 ) ) {
@@ -51,9 +44,7 @@ int getLine( char buffer[], int maxLength ) {
                     exit( 1 );
             }
 
-            if( !isterm ) {                 /* If input not from terminal */
-                write ( 1, &c, 1 );         /* Echo the character. */
-            }
+            write ( 1, &c, 1 );             /* Echo the character. */
 
             if( c == '\n' ) {               /* Check for end of line. */
                 break;
@@ -100,7 +91,7 @@ int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
 
     p = strtok( line, " \t" );
     while( p != NULL ) {
-        /* First check that no ERROR conditions occurred. */
+        /* First check that no error conditions occurred. */
         if( numWords == maxWords ) {
             msg = "ERROR: Too many words.\n";
             write(2,msg,strlen(msg));
