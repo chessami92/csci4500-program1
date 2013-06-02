@@ -147,14 +147,15 @@ int getPath( char *command, char *fullPath ) {
     free( pathenv );				            /* Free PATH copy. */
 
     *fullPath = '\0';
-    return -1;                                  /* Report not found. */
+    return -1;                                  /* Report command not found. */
 }
-/* Run the command with the path in the element */
-/* zero of the array. The path should already   */
-/* validated.                                   */
+
+/* Run the command with the arguments passed.   */
+/* The command path should already be validated */
+/* by getPath.                                  */
 /* Returns the pid of the child process if      */
 /* successful, -1 if not successfull.           */
-pid_t forkAndRun( char *command[], int fd[] ) {
+pid_t forkAndRun( char *command, char *argv[], int fd[] ) {
     pid_t pid;                          /* Newly created PID. */
     char *msg;                          /* Holds error messages. */
 
@@ -177,7 +178,7 @@ pid_t forkAndRun( char *command[], int fd[] ) {
             }
 
             /* Execute the command now that input and output are set. */
-            execve( command[0], command, environ );
+            execve( command, argv, environ );
             msg = "ERROR: execve failed.\n";
             write( 2, msg, strlen( msg ) );
             exit( 1 );
@@ -254,8 +255,6 @@ int execute( char *words[] ) {
             write( 2, msg, strlen( msg ) );
             return( -1 );
         }
-
-        words[command[i]] = executable[i];   /* Set the path for the command. */
     }
 
     /* Create pipe for second command if necessary. */
@@ -272,7 +271,7 @@ int execute( char *words[] ) {
 
     /* Execute all commands. */
     for( i = 0; i < 2 && command[i] != -1; ++i ) {
-        forkAndRun( words + command[i], fd[i] );
+        forkAndRun( executable[i], words + command[i], fd[i] );
     }
 
     wait( &status );                /* Wait for all child processes to end. */
