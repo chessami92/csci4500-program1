@@ -13,7 +13,7 @@
 //Main function for the shell. Gets input, parses it, then executes it.
 int main(int argc, char *argv[]) {
     char line[MAX_LINE_LENGTH + 1];
-    char *words[MAX_WORDS];
+    char *words[MAX_WORDS + 1];
 
     while ( 1 ) { 
         if( !getLine( line, MAX_LINE_LENGTH ) ) { /* Get command. */
