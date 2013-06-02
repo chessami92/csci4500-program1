@@ -5,7 +5,7 @@
 /* Support for multiple pipes from one program to another.  */
 /* No autocomplete, wildcards, conditional, or sequential   */
 /* command handling provided. Words are separated with tabs */
-/* or spaces.                                               */
+/* and/or spaces.                                           */
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -79,11 +79,10 @@ int getLine( char buffer[], int maxLength ) {
 }
 
 /* Parse the command line into an array of words. */
-/* Return 1 on success, or 0 if there is an ERROR */
+/* Return 1 on success, or 0 if there is an error */
 /* (i.e. there are too many words, or a word is   */
-/* too long), diagnosing the ERROR.               */
-/* The words are identified by the pointed in the */
-/* 'words' array, and 'nwds' = number of words.   */
+/* too long), diagnosing the error.               */
+/* The words are put into the passed words array. */
 int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
     char *p;			/* Pointer to current word. */
     char *msg;			/* Holds error messages. */
@@ -111,11 +110,8 @@ int parse( int maxWords, int maxWordLength, char *line, char *words[] ) {
     return 1;
 }
 
-/*--------------------------------------------------------------------------*/
-/* Put in 'path' the relative or absolute path to the command identified by */
-/* words[0]. If the file identified by 'path' is not executable, return -1. */
-/* Otherwise return 0.                                                      */
-/*--------------------------------------------------------------------------*/
+/* Take the command passed and put it into the full path variable.  */
+/* Return -1 if the command was not found on the path, 0 otherwise. */
 int getPath( char *command, char *fullPath ) {
     char *p;        /* Pointer to each individual path element. */
     char *pathenv;  /* Pointer to copy of PATH. */
@@ -123,7 +119,7 @@ int getPath( char *command, char *fullPath ) {
     /* Check to see if it is already a fully qualified */
     /* path name. If so, check executability and       */
     /* put the command in the full path label.         */
-    if( strchr( command, '/' ) != NULL ) {	/* if it has no '/' */
+    if( strchr( command, '/' ) != NULL ) {	    /* if it has no '/' */
         strcpy( fullPath, command );		    /* copy it to path */
         return access( fullPath, X_OK );	    /* return executable status */
     }
@@ -131,7 +127,7 @@ int getPath( char *command, char *fullPath ) {
     /* Search for the program in each of the listings in the */
     /* environment variable PATH. Append the command name    */
     /* and test if it is executable. If so, put that in the  */
-    /* full path variable.                                   */
+    /* full path variable and return 0.                      */
     pathenv = strdup( getenv( "PATH" ) );		/* Make copy of PATH. */
     p = strtok( pathenv, ":" );			        /* Get first directory. */
     while( p != NULL ) {
@@ -183,7 +179,7 @@ pid_t forkAndRun( char *command, char *argv[], int fd[] ) {
             write( 2, msg, strlen( msg ) );
             exit( 1 );
         default:
-            /* Close the file descriptors if they are not stdin or stdout. */
+            /* Close the extra file descriptors if not stdin or stdout. */
             if( fd[0] != 0 ) {
                 close( fd[0] );
             }
@@ -213,7 +209,7 @@ int execute( char *words[] ) {
     char *curCommand;       /* Pointer to current command searching for. */
     int status;             /* The status of the PID that exited. */
     int i;                  /* For looping to find pipes and wait on PIDs. */
-    int command[2];         /* Points to command in words array. */
+    int command[2];         /* Points to command location in words array. */
     char *msg;              /* Holds error messages. */
 
     command[0] = 0;         /* First command is at location 0. */
@@ -224,13 +220,15 @@ int execute( char *words[] ) {
 
     /* See if there is more than one command. */
     for( i = 1; words[i] != NULL; ++i ) {
-        if( *words[i] == '|' ) {    /* Found a pipe. */
+        if( *words[i] == '|' && *(words[i] + 1) == '\0' ) { /* Found a pipe. */
+            /* See if another pipe has already been encountered. */
             if( command[1] != -1 ) {
                 msg = "ERROR: Cannot have multiple pipes.\n";
                 write( 2, msg, strlen( msg ) );
                 return -1;
             }
 
+            /* Make sure another word after the pipe exists. */
             if( words[i + 1] == NULL ) {
                 msg = "ERROR: Must pipe into another command.\n";
                 write( 2, msg, strlen( msg ) );
